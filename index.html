@@ -1,0 +1,1369 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WebGIS Sebaran Rumah Sakit BPJS – Kota Pekanbaru</title>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<!-- Google Fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<!-- Font Awesome -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+<style>
+/* ====== ROOT VARIABLES ====== */
+:root {
+  --primary: #0f4c81;
+  --primary-light: #1a6cb8;
+  --accent: #e63946;
+  --accent2: #f4a261;
+  --bg: #f0f4f8;
+  --bg-dark: #0a1628;
+  --panel: #ffffff;
+  --text: #1a2744;
+  --text-muted: #5a6a8a;
+  --border: #d0dbe8;
+  --shadow: 0 4px 24px rgba(15,76,129,0.13);
+  --shadow-lg: 0 8px 40px rgba(15,76,129,0.18);
+  --radius: 14px;
+  --radius-sm: 8px;
+
+  /* Kecamatan Colors */
+  --c-tampan: #2196F3;
+  --c-marpoyan: #4CAF50;
+  --c-bukitraya: #FF5722;
+  --c-sail: #9C27B0;
+  --c-sukajadi: #FF9800;
+  --c-pkbkota: #00BCD4;
+  --c-senapelan: #E91E63;
+
+  /* Tipe RS Colors */
+  --t-umum: #0f4c81;
+  --t-jiwa: #7c3aed;
+  --t-mata: #059669;
+  --t-rsia: #db2777;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: var(--bg-dark);
+  color: var(--text);
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ====== HEADER ====== */
+#header {
+  background: linear-gradient(135deg, var(--bg-dark) 0%, #0d2547 100%);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  z-index: 1000;
+  flex-shrink: 0;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-icon {
+  width: 40px; height: 40px;
+  background: linear-gradient(135deg, var(--primary-light), var(--accent));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 18px;
+  box-shadow: 0 3px 12px rgba(230,57,70,0.4);
+}
+
+.header-title {
+  line-height: 1.2;
+}
+.header-title h1 {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.3px;
+}
+.header-title p {
+  font-size: 11px;
+  color: rgba(255,255,255,0.5);
+  font-family: 'Space Mono', monospace;
+}
+
+.header-stats {
+  display: flex;
+  gap: 16px;
+}
+.stat-pill {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 20px;
+  padding: 5px 14px;
+  text-align: center;
+}
+.stat-pill .num {
+  font-size: 16px;
+  font-weight: 800;
+  color: #ffffff;
+  display: block;
+}
+.stat-pill .lbl {
+  font-size: 9px;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ====== MAIN LAYOUT ====== */
+#app {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ====== SIDEBAR ====== */
+#sidebar {
+  width: 320px;
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border);
+  z-index: 500;
+  transition: width 0.3s ease;
+}
+
+#sidebar.collapsed {
+  width: 0;
+}
+
+.sidebar-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.sidebar-section h3 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Search */
+.search-wrap {
+  position: relative;
+}
+.search-wrap i {
+  position: absolute;
+  left: 12px; top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 13px;
+}
+#searchInput {
+  width: 100%;
+  padding: 9px 12px 9px 34px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  transition: border-color 0.2s;
+  outline: none;
+}
+#searchInput:focus { border-color: var(--primary); }
+
+/* Filter Kecamatan */
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.chip {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1.5px solid;
+  cursor: pointer;
+  transition: all 0.2s;
+  user-select: none;
+}
+.chip.active { color: white !important; }
+.chip.chip-all { border-color: var(--primary); color: var(--primary); }
+.chip.chip-all.active { background: var(--primary); }
+
+/* Tipe RS */
+.tipe-items { display: flex; flex-direction: column; gap: 6px; }
+.tipe-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+.tipe-item:hover { background: var(--bg); }
+.tipe-item input[type=checkbox] { display: none; }
+.tipe-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(0,0,0,0.2);
+  flex-shrink: 0;
+  position: relative;
+  transition: all 0.2s;
+}
+.tipe-item.checked .tipe-dot::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%,-50%);
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: white;
+}
+.tipe-item .tipe-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+.tipe-item .tipe-count {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-family: 'Space Mono', monospace;
+  background: var(--bg);
+  padding: 1px 6px;
+  border-radius: 8px;
+}
+
+/* RS List */
+#rs-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+#rs-list::-webkit-scrollbar { width: 4px; }
+#rs-list::-webkit-scrollbar-track { background: transparent; }
+#rs-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+.rs-card {
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1.5px solid transparent;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.rs-card:hover {
+  background: var(--bg);
+  border-color: var(--border);
+}
+.rs-card.active {
+  background: #e8f0fd;
+  border-color: var(--primary);
+}
+.rs-card-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.rs-card-info { flex: 1; min-width: 0; }
+.rs-card-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rs-card-sub {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.rs-card-badge {
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-weight: 700;
+  flex-shrink: 0;
+  color: white;
+}
+
+/* Statistik */
+.stat-bars { display: flex; flex-direction: column; gap: 8px; }
+.stat-bar-item {}
+.stat-bar-label {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 3px;
+}
+.stat-bar-name { font-size: 11px; font-weight: 600; color: var(--text); }
+.stat-bar-val { font-size: 11px; color: var(--text-muted); font-family: 'Space Mono', monospace; }
+.stat-bar-track {
+  height: 6px;
+  background: var(--bg);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.stat-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.8s ease;
+}
+
+/* ====== MAP ====== */
+#map-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+}
+
+/* ====== MAP CONTROLS ====== */
+.map-control-panel {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Leaflet zoom control ditempatkan di BAWAH tombol custom */
+.leaflet-top.leaflet-right {
+  top: auto !important;
+  bottom: auto !important;
+}
+.leaflet-control-zoom {
+  margin-top: 0 !important;
+  margin-right: 0 !important;
+}
+
+.map-btn {
+  width: 36px; height: 36px;
+  background: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow);
+  color: var(--primary);
+  font-size: 14px;
+  transition: all 0.2s;
+}
+.map-btn:hover {
+  background: var(--primary);
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Basemap Switcher */
+.basemap-switcher {
+  position: absolute;
+  bottom: 20px;
+  right: 12px;
+  z-index: 600;
+  background: white;
+  border-radius: var(--radius);
+  padding: 10px;
+  box-shadow: var(--shadow);
+}
+.basemap-switcher h4 {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+.basemap-options {
+  display: flex;
+  gap: 6px;
+}
+.basemap-opt {
+  width: 56px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+.basemap-opt img {
+  width: 56px; height: 40px;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  object-fit: cover;
+  display: block;
+}
+.basemap-opt.active img { border-color: var(--primary); }
+.basemap-opt span {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 3px;
+}
+.basemap-opt.active span { color: var(--primary); }
+
+/* ====== LEGEND (Floating) ====== */
+#legend {
+  position: absolute;
+  bottom: 20px;
+  left: 12px;
+  z-index: 600;
+  background: white;
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  box-shadow: var(--shadow);
+  min-width: 150px;
+}
+#legend h4 {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  font-weight: 700;
+  display: flex; align-items: center; gap: 5px;
+}
+.legend-items { display: flex; flex-direction: column; gap: 6px; }
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+.legend-icon {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: white;
+  font-size: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+.legend-kecamatan { margin-top: 10px; }
+.legend-kec-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.legend-kec-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+/* ====== POPUP CUSTOM ====== */
+.popup-custom {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  width: 280px;
+}
+.popup-header {
+  position: relative;
+  height: 130px;
+  border-radius: 8px 8px 0 0;
+  overflow: hidden;
+  background: #c8d8ed;
+}
+.popup-foto {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.popup-foto-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(255,255,255,0.8);
+  font-weight: 600;
+}
+.popup-tipe-badge {
+  position: absolute;
+  top: 8px; right: 8px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  backdrop-filter: blur(4px);
+}
+.popup-logo-wrap {
+  position: absolute;
+  bottom: -18px; left: 12px;
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  background: white;
+  border: 2.5px solid white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+}
+.popup-logo-wrap img { width: 100%; height: 100%; object-fit: cover; }
+.popup-logo-wrap i { font-size: 16px; color: var(--primary); }
+
+.popup-body {
+  padding: 24px 14px 14px;
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+}
+.popup-name {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.popup-kec {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 4px;
+}
+
+.popup-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 8px;
+}
+.popup-info-item {
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+.popup-info-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.popup-info-val {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.popup-info-item.full { grid-column: 1/-1; }
+
+.popup-jam-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+.popup-jam-badge.open24 {
+  background: #dcfce7;
+  color: #15803d;
+}
+.popup-jam-badge.terbatas {
+  background: #fef9c3;
+  color: #a16207;
+}
+
+/* Toggle sidebar btn */
+#toggleSidebar {
+  position: absolute;
+  top: 50%;
+  left: 320px;
+  transform: translateY(-50%);
+  z-index: 600;
+  width: 22px; height: 44px;
+  background: white;
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--primary);
+  font-size: 11px;
+  transition: left 0.3s ease;
+  box-shadow: 3px 0 10px rgba(0,0,0,0.1);
+}
+
+/* Leaflet popup override */
+.leaflet-popup-content-wrapper {
+  padding: 0 !important;
+  border-radius: 10px !important;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.2) !important;
+  overflow: hidden;
+}
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: auto !important;
+}
+.leaflet-popup-tip-container { margin-top: -1px; }
+
+/* Pulse animation for selected marker */
+@keyframes pulse {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.5; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Toast notification */
+#toast {
+  position: absolute;
+  top: 60px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-dark);
+  color: white;
+  padding: 8px 18px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+  box-shadow: var(--shadow-lg);
+}
+#toast.show { opacity: 1; }
+
+/* Sidebar toggle animation */
+#sidebar { transition: width 0.3s ease, opacity 0.3s ease; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div id="header">
+  <div class="header-brand">
+    <div class="header-icon"><i class="fas fa-hospital-alt"></i></div>
+    <div class="header-title">
+      <h1>WebGIS Sebaran RS BPJS – Kota Pekanbaru</h1>
+      <p>Pemetaan Interaktif Fasilitas Kesehatan Peserta BPJS &nbsp;|&nbsp; 2024</p>
+    </div>
+  </div>
+  <div class="header-stats">
+    <div class="stat-pill">
+      <span class="num" id="statTotal">20</span>
+      <span class="lbl">Total RS</span>
+    </div>
+    <div class="stat-pill">
+      <span class="num" id="statVisible">20</span>
+      <span class="lbl">Ditampilkan</span>
+    </div>
+    <div class="stat-pill">
+      <span class="num">7</span>
+      <span class="lbl">Kecamatan</span>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar">
+
+    <!-- SEARCH -->
+    <div class="sidebar-section">
+      <h3><i class="fas fa-search"></i> Cari Rumah Sakit</h3>
+      <div class="search-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" placeholder="Nama rumah sakit..."/>
+      </div>
+    </div>
+
+    <!-- FILTER KECAMATAN -->
+    <div class="sidebar-section">
+      <h3><i class="fas fa-map-marker-alt"></i> Filter Kecamatan</h3>
+      <div class="filter-chips" id="kecChips">
+        <span class="chip chip-all active" data-kec="all">Semua</span>
+      </div>
+    </div>
+
+    <!-- TIPE RS -->
+    <div class="sidebar-section">
+      <h3><i class="fas fa-filter"></i> Tipe Rumah Sakit</h3>
+      <div class="tipe-items" id="tipeFilters"></div>
+    </div>
+
+    <!-- STATISTIK -->
+    <div class="sidebar-section">
+      <h3><i class="fas fa-chart-bar"></i> Statistik per Kecamatan</h3>
+      <div class="stat-bars" id="statBars"></div>
+    </div>
+
+    <!-- LIST RS -->
+    <div id="rs-list"></div>
+
+  </div>
+
+  <!-- TOGGLE SIDEBAR BTN -->
+  <button id="toggleSidebar" title="Sembunyikan/Tampilkan Panel">
+    <i class="fas fa-chevron-left" id="toggleIcon"></i>
+  </button>
+
+  <!-- MAP -->
+  <div id="map-container">
+
+    <div id="map"></div>
+
+    <!-- MAP CONTROLS -->
+    <div class="map-control-panel">
+      <button class="map-btn" id="btnZoomAll" title="Lihat Semua RS"><i class="fas fa-expand-arrows-alt"></i></button>
+      <button class="map-btn" id="btnMyLoc" title="Lokasi Saya"><i class="fas fa-crosshairs"></i></button>
+    </div>
+
+    <!-- LEGEND -->
+    <div id="legend">
+      <h4><i class="fas fa-list"></i> Legenda</h4>
+      <div class="legend-items">
+        <div class="legend-item">
+          <div class="legend-icon" style="background:var(--t-umum)"><i class="fas fa-hospital"></i></div>
+          RS Umum (<span id="lgUmum">16</span>)
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon" style="background:var(--t-jiwa)"><i class="fas fa-brain"></i></div>
+          RS Jiwa (<span id="lgJiwa">1</span>)
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon" style="background:var(--t-mata)"><i class="fas fa-eye"></i></div>
+          RS Mata (<span id="lgMata">1</span>)
+        </div>
+        <div class="legend-item">
+          <div class="legend-icon" style="background:var(--t-rsia)"><i class="fas fa-baby"></i></div>
+          RSIA (<span id="lgRsia">2</span>)
+        </div>
+      </div>
+      <div class="legend-kecamatan" id="legendKec"></div>
+    </div>
+
+    <!-- BASEMAP SWITCHER -->
+    <div class="basemap-switcher">
+      <h4>Basemap</h4>
+      <div class="basemap-options">
+        <div class="basemap-opt active" data-basemap="osm" onclick="switchBasemap(this)">
+          <img src="https://tile.openstreetmap.org/7/105/65.png" alt="OSM">
+          <span>OSM</span>
+        </div>
+        <div class="basemap-opt" data-basemap="satellite" onclick="switchBasemap(this)">
+          <img src="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/7/64/105" alt="Satelit">
+          <span>Satelit</span>
+        </div>
+        <div class="basemap-opt" data-basemap="topo" onclick="switchBasemap(this)">
+          <img src="https://tile.opentopomap.org/7/105/65.png" alt="Topo">
+          <span>Topo</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end map-container -->
+
+</div><!-- end app -->
+
+<div id="toast"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+// =====================================================
+// DATA RUMAH SAKIT
+// =====================================================
+const HOSPITALS = [{"id":"rs_1","nama":"RSD Madani Pekanbaru","alamat":"Jl. Garuda Sakti KM 2","lat":0.482874,"lng":101.364389,"kecamatan":"Tampan","kelurahan":"Simpang Baru","telepon":"(0451)-4916058","jam":"24 Jam","tipe":"RS Umum","logo":"","foto":"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRcW5Fssn9DpUCB-FctqPTxv5XtJiuHJkngnQ&s"},{"id":"rs_2","nama":"RS Universitas Riau","alamat":"Kampus Bina Widya, HR Soebrantas KM 12.5","lat":0.469459,"lng":101.38054,"kecamatan":"Tampan","kelurahan":"Simpang Baru","telepon":"0851-0560-3000","jam":"24 Jam","tipe":"RS Umum","logo":"","foto":""},{"id":"rs_3","nama":"Aulia Hospital","alamat":"Jl. HR Soebrantas No.63","lat":0.46367,"lng":101.385225,"kecamatan":"Tampan","kelurahan":"Tuah Karya","telepon":"0811-7560-100","jam":"24 Jam","tipe":"RS Umum","logo":"","foto":""},{"id":"rs_4","nama":"RS Jiwa Tampan","alamat":"Jl. HR Soebrantas KM 12","lat":0.465084,"lng":101.382569,"kecamatan":"Tampan","kelurahan":"Simpang Baru","telepon":"0822-6678-0044","jam":"08.00–16.30","tipe":"RS Jiwa","logo":"","foto":""},{"id":"rs_5","nama":"RS Awal Bros Panam","alamat":"Jl. HR Soebrantas No.88","lat":0.463489,"lng":101.390351,"kecamatan":"Tampan","kelurahan":"Tuah Karya","telepon":"1500-088","jam":"24 Jam","tipe":"RS Umum","logo":"","foto":""},{"id":"rs_6","nama":"RSAU dr. Sukirman","alamat":"Jl. Adisucipto","lat":0.463484,"lng":101.430127,"kecamatan":"Marpoyan Damai","kelurahan":"Sidomulyo Timur","telepon":"(0761)-61456","jam":"24 Jam","tipe":"RS Umum","logo":"","foto":"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQeSCYCbdLtflZ3EQB33mbZH3CAyZZlizhnOET4giEXtlfBnbhm5NOdOD0&s"},{"id":"rs_7","nama":"Pekanbaru Eye Center","alamat":"Jl. Soekarno Hatta No.236","lat":0.476373,"lng":101.419157,"kecamatan":"Marpoyan Damai","kelurahan":"Sidomulyo Timur","telepon":"(0761) 7875191","jam":"08.00–21.00","tipe":"RS Mata","logo":"","foto":""},{"id":"rs_8","nama":"Eka Hospital Pekanbaru","alamat":"Jl. Soekarno Hatta No.6","lat":0.482547,"lng":101.419897,"kecamatan":"Marpoyan Damai","kelurahan":"Tangkerang Barat","telepon":"(0761) 6989999","jam":"24 Jam","tipe":"RS Umum","logo":"","foto":""},{"id":"rs_9","nama":"RS Prima Pekanbaru","alamat":"Jl. Bima No.1","lat":0.497066,"lng":101.400637,"kecamatan":"Tampan","kelurahan":"Delima","telepon":"(0761) 8419007","jam":"24 Jam","tipe":"RS Umum","logo":"","foto":""},{"id":"rs_10","nama":"RS Hermina Pekanbaru","alamat":"Jl. Tuanku Tambusai","lat":0.499468,"lng":101.412938,"kecamatan":"Tampan","kelurahan":"Delima","telepon":"(0761) 8411919","jam":"24 Jam","tipe":"RS Umum","logo":"","foto":""},{"id":"rs_11","nama":"RS Awal Bros Pekanbaru","alamat":"Jl. Jend Sudirman No.117","lat":0.501796,"lng":101.462977,"kecamatan":"Bukit Raya","kelurahan":"Tangkerang Selatan","telepon":"1500-088","jam":"24 Jam","tipe":"RS Umum","logo":"","foto":"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQPX9SV5l97rfvA7nAKC5RTcjOKVYF4_RSHLg&s"},{"id":"rs_12","nama":"RS Syafira","alamat":"Jl. Jend Sudirman No.134","lat":0.4986,"lng":101.455493,"kecamatan":"Marpoyan Damai","kelurahan":"Tangkerang Tengah","telepon":"0813-6300-9995","jam":"24 Jam","tipe":"RS Umum","logo":"","foto":"https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEggWjHXT6HsAh5l0wdePjMrw0P8xX_c-wwcGyGAP51N5ukaCuzy0Wj0P5Q1xzrzJvSMIZCAWPBv3KX55d7dXivPBiIoDklUvaIJfzVi6h-otyTO4GUq6-HsOwvch8LrAy0EbphVjbdcUn4/w1200-h630-p-k-no-nu/RS+Syafira+Pekanbaru+Jadwal+praktek+dokter.jpg"},{"id":"rs_13","nama":"RSIA Annisa","alamat":"Jl. Garuda No.66","lat":0.499595,"lng":101.44544,"kecamatan":"Marpoyan Damai","kelurahan":"Tangkerang Tengah","telepon":"0852-6459-6519","jam":"24 Jam","tipe":"RSIA","logo":"","foto":""},{"id":"rs_14","nama":"RS Prof. Dr. Tabrani","alamat":"Jl. Jend Sudirman No.410","lat":0.508571,"lng":101.45047,"kecamatan":"Marpoyan Damai","kelurahan":"Wonorejo","telepon":"(0761) 35464","jam":"24 Jam","tipe":"RS Umum","logo":"","foto":"https://medicastore.com/images/faskes/RUMAH-SAKIT-PROF.-DR.-TABRANI-MEDICASTORE.jpg"},{"id":"rs_15","nama":"Pekanbaru Medical Centre","alamat":"Jl. Lembaga Pemasyarakatan No.25","lat":0.508951,"lng":101.462398,"kecamatan":"Sail","kelurahan":"Suka Maju","telepon":"(0761) 848100","jam":"24 Jam","tipe":"RS Umum","logo":"","foto":"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS45QLDNwJRmgNxGqMDGuCLm75mHHOAXhWjcw&s"},{"id":"rs_16","nama":"RSIA Zainab","alamat":"Jl. Ronggowarsito No.1","lat":0.513924,"lng":101.454713,"kecamatan":"Sail","kelurahan":"Suka Maju","telepon":"(0761) 24000","jam":"24 Jam","tipe":"RSIA","logo":"","foto":"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcS7OLxU_klBzUAfWfTES4-eC4-VecFgFqVzCQ&s"},{"id":"rs_17","nama":"RS Murni Teguh Eria","alamat":"Jl. KH Ahmad Dahlan No.163","lat":0.512428,"lng":101.438146,"kecamatan":"Sukajadi","kelurahan":"Kampung Tengah","telepon":"0823-8454-6368","jam":"24 Jam","tipe":"RS Umum","logo":"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQAYQu9HYo-HEswZhNaW2biC5P96jv34OCd1A&s","foto":"https://d1ojs48v3n42tp.cloudfront.net/provider_location_banner/804730_28-11-2024_13-50-37.jpeg"},{"id":"rs_18","nama":"RS Bhayangkara Pekanbaru","alamat":"Jl. RA Kartini No.14","lat":0.520755,"lng":101.448891,"kecamatan":"Pekanbaru Kota","kelurahan":"Simpang Empat","telepon":"0813-4496-2773","jam":"24 Jam","tipe":"RS Umum","logo":"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ8lieD_GbvmMCx5UNBtMWxAZY7jN6Y9xV8Cw&s","foto":"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRTLOO1qGQ3j1L-NgIfP-cEk9FbqgnVAQHFGg&s"},{"id":"rs_19","nama":"RS Bina Kasih Pekanbaru","alamat":"Jl. KH Samanhudi No.3-5","lat":0.535937,"lng":101.445665,"kecamatan":"Senapelan","kelurahan":"Sago","telepon":"0812-6141-2105","jam":"24 Jam","tipe":"RS Umum","logo":"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTXbl0_PfgiahezswK-asALszsVkmStDhNUcw&s","foto":"https://kfmap.asia/storage/thumbs/storage/photos/ID.PKU.HOS.BKHOS/ID.PKU.HOS.BKHOS_1.jpeg"},{"id":"rs_20","nama":"RSUD Arifin Achmad","alamat":"Jl. Diponegoro No.2","lat":0.524088,"lng":101.451943,"kecamatan":"Pekanbaru Kota","kelurahan":"Sumahilang","telepon":"(0761) 21618","jam":"24 Jam","tipe":"RS Umum","logo":"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSi1gUszREN-2rgDJW9rYjrF6U6MTBbnVLNng&s","foto":"https://bertuahpos.com/wp-content/uploads/2021/10/RSUD-ARIFIN-ACHMAD-KEKURANGAN-AIR-BERSIH.jpeg"}];
+
+// =====================================================
+// COLORS CONFIG
+// =====================================================
+const KEC_COLORS = {
+  "Tampan": "#2196F3",
+  "Marpoyan Damai": "#43A047",
+  "Bukit Raya": "#F44336",
+  "Sail": "#9C27B0",
+  "Sukajadi": "#FF9800",
+  "Pekanbaru Kota": "#00BCD4",
+  "Senapelan": "#E91E63"
+};
+
+const TIPE_CONFIG = {
+  "RS Umum": { color: "#0f4c81", icon: "fa-hospital", label: "RS Umum" },
+  "RS Jiwa": { color: "#7c3aed", icon: "fa-brain", label: "RS Jiwa" },
+  "RS Mata": { color: "#059669", icon: "fa-eye", label: "RS Mata" },
+  "RSIA":    { color: "#db2777", icon: "fa-baby", label: "RSIA" }
+};
+
+// =====================================================
+// MAP INIT
+// =====================================================
+const map = L.map('map', {
+  center: [0.495, 101.43],
+  zoom: 13,
+  zoomControl: false
+});
+
+// Zoom control akan ditambahkan setelah custom buttons via CSS positioning
+
+// Basemaps
+const basemaps = {
+  osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '© OpenStreetMap contributors'
+  }),
+  satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+    maxZoom: 19,
+    attribution: '© Esri'
+  }),
+  topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    maxZoom: 17,
+    attribution: '© OpenTopoMap'
+  })
+};
+basemaps.osm.addTo(map);
+let currentBasemap = 'osm';
+
+function switchBasemap(el) {
+  const bm = el.dataset.basemap;
+  if (bm === currentBasemap) return;
+  map.removeLayer(basemaps[currentBasemap]);
+  basemaps[bm].addTo(map);
+  map.removeLayer(basemaps[bm]);
+  basemaps[bm].addTo(map);
+  // reorder so markers stay on top
+  Object.values(basemaps).forEach(b => { if (map.hasLayer(b)) map.removeLayer(b); });
+  basemaps[bm].addTo(map);
+  currentBasemap = bm;
+  document.querySelectorAll('.basemap-opt').forEach(o => o.classList.remove('active'));
+  el.classList.add('active');
+}
+
+// =====================================================
+// MARKERS
+// =====================================================
+const markersMap = {};
+const layerGroup = L.layerGroup().addTo(map);
+
+function createMarkerIcon(rs, isSelected = false) {
+  const cfg = TIPE_CONFIG[rs.tipe] || TIPE_CONFIG['RS Umum'];
+  const kecColor = KEC_COLORS[rs.kecamatan] || '#888';
+  const size = isSelected ? 38 : 32;
+  const shadow = isSelected ? '0 4px 16px rgba(0,0,0,0.4)' : '0 3px 8px rgba(0,0,0,0.25)';
+  return L.divIcon({
+    html: `<div style="
+      width:${size}px; height:${size}px;
+      background:${cfg.color};
+      border-radius:50% 50% 50% 0;
+      transform:rotate(-45deg);
+      border:3px solid white;
+      box-shadow:${shadow};
+      display:flex; align-items:center; justify-content:center;
+      ${isSelected ? 'animation:pulse 1.5s infinite;' : ''}
+    ">
+      <div style="transform:rotate(45deg); color:white; font-size:${isSelected?14:12}px;">
+        <i class="fas ${cfg.icon}"></i>
+      </div>
+    </div>
+    <div style="
+      position:absolute; bottom:-5px; left:50%; transform:translateX(-50%);
+      width:6px; height:6px;
+      border-radius:50%;
+      background:${kecColor};
+      border:1.5px solid white;
+      box-shadow:0 1px 3px rgba(0,0,0,0.3);
+    "></div>`,
+    className: '',
+    iconSize: [size, size + 8],
+    iconAnchor: [size/2, size + 8],
+    popupAnchor: [0, -(size + 8)]
+  });
+}
+
+function createPopupContent(rs) {
+  const cfg = TIPE_CONFIG[rs.tipe] || TIPE_CONFIG['RS Umum'];
+  const jamClass = rs.jam === '24 Jam' ? 'open24' : 'terbatas';
+  const jamIcon = rs.jam === '24 Jam' ? 'fa-clock' : 'fa-hourglass-half';
+
+  // Coba berbagai ekstensi untuk foto lokal
+  const fotoLocal = `foto_${rs.id}`;
+  const fotoHtml = `<img class="popup-foto" src="${fotoLocal}.jpg" alt="${rs.nama}"
+       onerror="
+         if(this.src.endsWith('.jpg')){this.src='${fotoLocal}.png';}
+         else if(this.src.endsWith('.png')){this.src='${fotoLocal}.jpeg';}
+         else{this.style.display='none';this.nextElementSibling.style.display='flex';}
+       ">
+       <div class="popup-foto-placeholder" style="display:none; background:linear-gradient(135deg,${cfg.color}88,${cfg.color}cc)">
+         <i class="fas ${cfg.icon}" style="font-size:28px; opacity:0.7;"></i>
+         <span style="font-size:11px;">${rs.tipe}</span>
+       </div>`;
+
+  // Coba logo lokal berdasarkan ID
+  const logoLocal = `assets/logo/logo_${rs.id}`;
+  const logoHtml = `<div class="popup-logo-wrap">
+    <img src="${logoLocal}.png" alt="logo"
+      onerror="if(this.src.endsWith('.png')){this.src='${logoLocal}.jpg';}else if(this.src.endsWith('.jpg')){this.src='${logoLocal}.jpeg';}else{this.style.display='none';this.nextElementSibling.style.display='block';}">
+    <i class="fas ${cfg.icon}" style="display:none;"></i>
+  </div>`;
+
+  return `<div class="popup-custom">
+    <div class="popup-header">
+      ${fotoHtml}
+      <div class="popup-tipe-badge" style="background:${cfg.color}ee">
+        <i class="fas ${cfg.icon}"></i> ${rs.tipe}
+      </div>
+      ${logoHtml}
+    </div>
+    <div class="popup-body">
+      <div class="popup-name">${rs.nama}</div>
+      <div class="popup-kec">
+        <i class="fas fa-map-pin" style="color:${KEC_COLORS[rs.kecamatan]}"></i>
+        ${rs.kecamatan} &nbsp;·&nbsp; ${rs.kelurahan}
+      </div>
+      <div class="popup-info-grid">
+        <div class="popup-info-item full">
+          <div class="popup-info-label"><i class="fas fa-map-marker-alt"></i> Alamat</div>
+          <div class="popup-info-val" title="${rs.alamat}">${rs.alamat}</div>
+        </div>
+        <div class="popup-info-item">
+          <div class="popup-info-label"><i class="fas fa-phone"></i> Telepon</div>
+          <div class="popup-info-val">${rs.telepon}</div>
+        </div>
+        <div class="popup-info-item">
+          <div class="popup-info-label"><i class="fas fa-id-card"></i> ID</div>
+          <div class="popup-info-val">${rs.id.toUpperCase()}</div>
+        </div>
+      </div>
+      <div class="popup-jam-badge ${jamClass}">
+        <i class="fas ${jamIcon}"></i> ${rs.jam}
+      </div>
+    </div>
+  </div>`;
+}
+
+let selectedMarkerId = null;
+
+HOSPITALS.forEach(rs => {
+  const marker = L.marker([rs.lat, rs.lng], { icon: createMarkerIcon(rs) });
+  marker.bindPopup(createPopupContent(rs), { maxWidth: 300, minWidth: 280 });
+
+  marker.on('click', () => {
+    selectRS(rs.id);
+  });
+  
+  // Override popup pan behavior untuk offset yang lebih baik
+  marker.on('popupopen', function(e) {
+    const px = map.project(e.popup._latlng);
+    // Geser viewport ke bawah 150px agar popup card tidak tertutup
+    px.y += 150;
+    map.panTo(map.unproject(px), { animate: true, duration: 0.4 });
+  });
+
+  marker.rsId = rs.id;
+  markersMap[rs.id] = marker;
+  layerGroup.addLayer(marker);
+});
+
+function selectRS(id) {
+  // reset prev
+  if (selectedMarkerId && markersMap[selectedMarkerId]) {
+    const prev = HOSPITALS.find(h => h.id === selectedMarkerId);
+    if (prev) markersMap[selectedMarkerId].setIcon(createMarkerIcon(prev, false));
+  }
+  selectedMarkerId = id;
+  const rs = HOSPITALS.find(h => h.id === id);
+  if (rs && markersMap[id]) {
+    markersMap[id].setIcon(createMarkerIcon(rs, true));
+    markersMap[id].openPopup();
+    
+    // Pan ke marker dengan offset ke BAWAH agar popup card info tidak tertutup
+    // Offset -120px ke atas (negatif = geser peta ke atas = marker lebih ke bawah viewport)
+    const currentZoom = map.getZoom() < 15 ? 15 : map.getZoom();
+    map.setView([rs.lat, rs.lng], currentZoom, { animate: true });
+    
+    // Setelah zoom selesai, pan sedikit ke atas agar card info terlihat
+    setTimeout(() => {
+      const point = map.project([rs.lat, rs.lng], currentZoom);
+      // Geser 150px ke bawah (offset Y positif = geser tampilan ke atas)
+      const newPoint = point.subtract([0, 200]);
+      const newLatLng = map.unproject(newPoint, currentZoom);
+      map.panTo(newLatLng, { animate: true, duration: 0.5 });
+    }, 350);
+  }
+  // update list highlight
+  document.querySelectorAll('.rs-card').forEach(c => {
+    c.classList.toggle('active', c.dataset.id === id);
+  });
+  // scroll list item into view
+  const card = document.querySelector(`.rs-card[data-id="${id}"]`);
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// =====================================================
+// KECAMATAN LAYER (color-coded circles)
+// =====================================================
+const kecLayerGroup = L.layerGroup().addTo(map);
+
+const kecData = {};
+HOSPITALS.forEach(rs => {
+  if (!kecData[rs.kecamatan]) kecData[rs.kecamatan] = { lats: [], lngs: [], count: 0 };
+  kecData[rs.kecamatan].lats.push(rs.lat);
+  kecData[rs.kecamatan].lngs.push(rs.lng);
+  kecData[rs.kecamatan].count++;
+});
+
+Object.entries(kecData).forEach(([kec, data]) => {
+  const centerLat = data.lats.reduce((a, b) => a + b, 0) / data.lats.length;
+  const centerLng = data.lngs.reduce((a, b) => a + b, 0) / data.lngs.length;
+  const color = KEC_COLORS[kec] || '#888';
+
+  L.circle([centerLat, centerLng], {
+    radius: 1600,
+    color: color,
+    fillColor: color,
+    fillOpacity: 0.06,
+    weight: 2,
+    opacity: 0.35,
+    dashArray: '6 4'
+  }).bindTooltip(`<b>${kec}</b><br>${data.count} RS BPJS`, { direction: 'center', className: '' })
+    .addTo(kecLayerGroup);
+
+  // Kec label
+  L.marker([centerLat, centerLng], {
+    icon: L.divIcon({
+      html: `<div style="
+        font-family:'Plus Jakarta Sans',sans-serif;
+        font-size:9px; font-weight:700;
+        color:${color};
+        text-transform:uppercase;
+        letter-spacing:0.5px;
+        text-align:center;
+        white-space:nowrap;
+        padding:2px 5px;
+        background:rgba(255,255,255,0.85);
+        border-radius:4px;
+        border:1px solid ${color}44;
+      ">${kec}</div>`,
+      className: '',
+      iconSize: [90, 20],
+      iconAnchor: [45, 10]
+    })
+  }).addTo(kecLayerGroup);
+});
+
+// =====================================================
+// SIDEBAR: KECAMATAN CHIPS
+// =====================================================
+const kecChipsEl = document.getElementById('kecChips');
+Object.keys(kecData).forEach(kec => {
+  const color = KEC_COLORS[kec] || '#888';
+  const chip = document.createElement('span');
+  chip.className = 'chip';
+  chip.dataset.kec = kec;
+  chip.textContent = kec;
+  chip.style.borderColor = color;
+  chip.style.color = color;
+  chip.addEventListener('click', () => {
+    setKecFilter(kec);
+  });
+  kecChipsEl.appendChild(chip);
+});
+
+let activeKec = 'all';
+function setKecFilter(kec) {
+  activeKec = kec;
+  document.querySelectorAll('.chip').forEach(c => {
+    const isActive = c.dataset.kec === kec;
+    c.classList.toggle('active', isActive);
+    if (isActive && kec !== 'all') {
+      const col = KEC_COLORS[kec] || '#888';
+      c.style.background = col;
+      c.style.color = 'white';
+    } else if (isActive && kec === 'all') {
+      c.style.background = 'var(--primary)';
+      c.style.color = 'white';
+    } else {
+      c.style.background = '';
+      const col = KEC_COLORS[c.dataset.kec] || '#888';
+      c.style.color = col;
+    }
+  });
+  applyFilters();
+}
+
+// =====================================================
+// TIPE FILTERS
+// =====================================================
+const activeTipe = new Set(Object.keys(TIPE_CONFIG));
+const tipeFiltersEl = document.getElementById('tipeFilters');
+const tipeCount = {};
+HOSPITALS.forEach(h => { tipeCount[h.tipe] = (tipeCount[h.tipe] || 0) + 1; });
+
+Object.entries(TIPE_CONFIG).forEach(([tipe, cfg]) => {
+  const item = document.createElement('label');
+  item.className = 'tipe-item checked';
+  item.innerHTML = `
+    <input type="checkbox" checked>
+    <div class="tipe-dot" style="background:${cfg.color}; border-color:${cfg.color}44;"></div>
+    <span class="tipe-label">${cfg.label}</span>
+    <span class="tipe-count">${tipeCount[tipe] || 0}</span>
+  `;
+  item.querySelector('input').addEventListener('change', (e) => {
+    if (e.target.checked) activeTipe.add(tipe);
+    else activeTipe.delete(tipe);
+    item.classList.toggle('checked', e.target.checked);
+    applyFilters();
+  });
+  tipeFiltersEl.appendChild(item);
+});
+
+// =====================================================
+// STAT BARS
+// =====================================================
+const statBarsEl = document.getElementById('statBars');
+const maxCount = Math.max(...Object.values(kecData).map(d => d.count));
+Object.entries(kecData).sort((a,b) => b[1].count - a[1].count).forEach(([kec, data]) => {
+  const color = KEC_COLORS[kec] || '#888';
+  const pct = (data.count / maxCount * 100).toFixed(0);
+  const div = document.createElement('div');
+  div.className = 'stat-bar-item';
+  div.innerHTML = `
+    <div class="stat-bar-label">
+      <span class="stat-bar-name">${kec}</span>
+      <span class="stat-bar-val">${data.count} RS</span>
+    </div>
+    <div class="stat-bar-track">
+      <div class="stat-bar-fill" style="width:0%; background:${color};" data-pct="${pct}%"></div>
+    </div>
+  `;
+  statBarsEl.appendChild(div);
+});
+setTimeout(() => {
+  document.querySelectorAll('.stat-bar-fill').forEach(b => {
+    b.style.width = b.dataset.pct;
+  });
+}, 300);
+
+// =====================================================
+// RS LIST
+// =====================================================
+function buildRsList(hospitals) {
+  const listEl = document.getElementById('rs-list');
+  listEl.innerHTML = '';
+  if (hospitals.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:12px;"><i class="fas fa-search" style="font-size:20px;margin-bottom:8px;display:block;opacity:0.3;"></i>Tidak ada hasil</div>';
+    return;
+  }
+  hospitals.forEach(rs => {
+    const cfg = TIPE_CONFIG[rs.tipe] || TIPE_CONFIG['RS Umum'];
+    const card = document.createElement('div');
+    card.className = 'rs-card';
+    card.dataset.id = rs.id;
+    card.innerHTML = `
+      <div class="rs-card-dot" style="background:${cfg.color};"></div>
+      <div class="rs-card-info">
+        <div class="rs-card-name">${rs.nama}</div>
+        <div class="rs-card-sub"><i class="fas fa-map-marker-alt" style="color:${KEC_COLORS[rs.kecamatan]}"></i> ${rs.kecamatan} · ${rs.jam}</div>
+      </div>
+      <div class="rs-card-badge" style="background:${cfg.color}22; color:${cfg.color};">
+        ${rs.tipe.replace('RS ','').replace('RSIA','RSIA')}
+      </div>
+    `;
+    card.addEventListener('click', () => selectRS(rs.id));
+    listEl.appendChild(card);
+  });
+}
+buildRsList(HOSPITALS);
+
+// =====================================================
+// LEGEND KEC
+// =====================================================
+const legendKecEl = document.getElementById('legendKec');
+legendKecEl.innerHTML = '<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-muted);margin:10px 0 6px;"><i class="fas fa-circle-half-stroke"></i> Kecamatan</div>';
+Object.entries(KEC_COLORS).forEach(([kec, color]) => {
+  legendKecEl.innerHTML += `
+    <div class="legend-kec-item">
+      <div class="legend-kec-dot" style="background:${color};"></div>
+      ${kec}
+    </div>`;
+});
+
+// =====================================================
+// FILTERS LOGIC
+// =====================================================
+let searchQuery = '';
+
+document.getElementById('searchInput').addEventListener('input', (e) => {
+  searchQuery = e.target.value.toLowerCase();
+  applyFilters();
+});
+
+function applyFilters() {
+  let visible = HOSPITALS.filter(rs => {
+    const matchKec = activeKec === 'all' || rs.kecamatan === activeKec;
+    const matchTipe = activeTipe.has(rs.tipe);
+    const matchSearch = !searchQuery || rs.nama.toLowerCase().includes(searchQuery) || rs.alamat.toLowerCase().includes(searchQuery);
+    return matchKec && matchTipe && matchSearch;
+  });
+
+  // Update markers
+  layerGroup.clearLayers();
+  HOSPITALS.forEach(rs => {
+    const isVisible = visible.find(h => h.id === rs.id);
+    if (isVisible) {
+      const isSelected = rs.id === selectedMarkerId;
+      markersMap[rs.id].setIcon(createMarkerIcon(rs, isSelected));
+      layerGroup.addLayer(markersMap[rs.id]);
+    }
+  });
+
+  // Update list
+  buildRsList(visible);
+
+  // Update stat
+  document.getElementById('statVisible').textContent = visible.length;
+
+  // If filtered to one kec, fly to it
+  if (activeKec !== 'all' && kecData[activeKec]) {
+    const d = kecData[activeKec];
+    const lat = d.lats.reduce((a,b)=>a+b,0)/d.lats.length;
+    const lng = d.lngs.reduce((a,b)=>a+b,0)/d.lngs.length;
+    map.flyTo([lat, lng], 14, { animate: true, duration: 0.8 });
+  }
+}
+
+// =====================================================
+// MAP CONTROLS
+// =====================================================
+document.getElementById('btnZoomAll').addEventListener('click', () => {
+  map.fitBounds([[0.455, 101.355], [0.545, 101.475]], { padding: [40, 40] });
+  showToast('Menampilkan semua RS');
+});
+
+document.getElementById('btnMyLoc').addEventListener('click', () => {
+  if (!navigator.geolocation) { showToast('Geolokasi tidak didukung'); return; }
+  showToast('Mencari lokasi Anda...');
+  navigator.geolocation.getCurrentPosition(pos => {
+    map.setView([pos.coords.latitude, pos.coords.longitude], 15);
+    L.marker([pos.coords.latitude, pos.coords.longitude], {
+      icon: L.divIcon({
+        html: '<div style="width:16px;height:16px;background:#e63946;border-radius:50%;border:3px solid white;box-shadow:0 0 0 4px rgba(230,57,70,0.3);"></div>',
+        className: '', iconSize: [16,16], iconAnchor: [8,8]
+      })
+    }).addTo(map).bindPopup('<b>Lokasi Anda</b>').openPopup();
+    showToast('Lokasi ditemukan!');
+  }, () => showToast('Gagal mendapatkan lokasi'));
+});
+
+// =====================================================
+// ZOOM CONTROL - Ditempatkan di bawah tombol custom
+// =====================================================
+// Tambahkan zoom control Leaflet setelah custom buttons siap
+(function positionZoomControl() {
+  // Tambahkan zoom control dan posisikan di bawah tombol-tombol custom
+  const zoomControl = L.control.zoom({ position: 'topright' });
+  zoomControl.addTo(map);
+  
+  // Override CSS agar zoom muncul di bawah tombol custom (top: ~100px)
+  setTimeout(() => {
+    const zoomEl = document.querySelector('.leaflet-control-zoom');
+    const panelEl = document.querySelector('.map-control-panel');
+    if (zoomEl && panelEl) {
+      const panelHeight = panelEl.offsetHeight;
+      const panelTop = 12;
+      zoomEl.style.position = 'absolute';
+      zoomEl.style.top = (panelTop + panelHeight + 8) + 'px';
+      zoomEl.style.right = '0';
+      zoomEl.style.margin = '0';
+    }
+  }, 100);
+  
+  // Update posisi saat window resize
+  window.addEventListener('resize', () => {
+    setTimeout(() => {
+      const zoomEl = document.querySelector('.leaflet-control-zoom');
+      const panelEl = document.querySelector('.map-control-panel');
+      if (zoomEl && panelEl) {
+        const panelHeight = panelEl.offsetHeight;
+        zoomEl.style.top = (12 + panelHeight + 8) + 'px';
+      }
+    }, 100);
+  });
+})();
+
+// =====================================================
+// TOGGLE SIDEBAR
+// =====================================================
+let sidebarOpen = true;
+document.getElementById('toggleSidebar').addEventListener('click', () => {
+  sidebarOpen = !sidebarOpen;
+  const sidebar = document.getElementById('sidebar');
+  const toggleBtn = document.getElementById('toggleSidebar');
+  const icon = document.getElementById('toggleIcon');
+  sidebar.style.width = sidebarOpen ? '320px' : '0';
+  sidebar.style.opacity = sidebarOpen ? '1' : '0';
+  toggleBtn.style.left = sidebarOpen ? '320px' : '0';
+  icon.className = sidebarOpen ? 'fas fa-chevron-left' : 'fas fa-chevron-right';
+  setTimeout(() => map.invalidateSize(), 310);
+});
+
+// =====================================================
+// TOAST
+// =====================================================
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+// =====================================================
+// INITIAL FIT
+// =====================================================
+map.fitBounds([[0.455, 101.355], [0.545, 101.475]], { padding: [20, 20] });
+
+// Animate stat bars on load
+setTimeout(() => {
+  document.querySelectorAll('.stat-bar-fill').forEach(b => {
+    b.style.transition = 'width 1s ease';
+  });
+}, 100);
+
+</script>
+</body>
+</html>
